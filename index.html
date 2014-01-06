@@ -40,7 +40,7 @@
     this.radsPerStep = (Math.PI*2)/stepsPerRotation;
     this.steps = 0;
     this.ozin = ozin;
-    this.dimensions = Vec2(56, 56);
+    this.dimension = Vec2(56, 56);
     this.observers = [];
     this.rpm = 0;
 
@@ -82,7 +82,7 @@
     }
 
     ctx.save()
-      var hx = this.dimensions.x/2, hy = this.dimensions.y/2
+      var hx = this.dimension.x/2, hy = this.dimension.y/2
       ctx.translate(this.pos.x, this.pos.y);
       ctx.strokeStyle = "green";
       ctx.beginPath();
@@ -132,8 +132,6 @@
   Arm.prototype.render = function(ctx, delta) {
     ctx.save();
       var angle = this.rotation;
-      
-
 
       ctx.translate(this.start.x, this.start.y);
       
@@ -192,15 +190,15 @@
     ctx.restore();
   };
 
-  var config = { upper : 60, lower: 100, };
+  var config = { 'upper length' : 100, 'lower length': 150, 'stepper spacing': 60 };
 
   var steppers = [new Stepper(Vec2(50, -110), 1600), new Stepper(Vec2(110, -110), 1600)];
 
-  var arm1a = new Arm(steppers[0].pos, steppers[0].pos.add(Vec2(0, config.upper), true));
-  var arm2a = new Arm(steppers[1].pos, steppers[1].pos.add(Vec2(0, config.upper), true));
+  var arm1a = new Arm(steppers[0].pos, steppers[0].pos.add(Vec2(0, config['upper length']), true));
+  var arm2a = new Arm(steppers[1].pos, steppers[1].pos.add(Vec2(0, config['upper length']), true));
 
-  var arm1b = new Arm(arm1a.end, arm1a.end.add(Vec2(0, config.lower), true));
-  var arm2b = new Arm(arm2a.end, arm2a.end.add(Vec2(0, config.lower), true));
+  var arm1b = new Arm(arm1a.end, arm1a.end.add(Vec2(0, config['lower length']), true));
+  var arm2b = new Arm(arm2a.end, arm2a.end.add(Vec2(0, config['lower length']), true));
 
 
   var target = Vec2(0, 50);
@@ -214,26 +212,45 @@
     arm2a.end.set(Vec2(0, arm2a.length).rotate(rotation).add(arm2a.start));
   });
 
-  
+
+  var computeBuildArea = function() {
+    var ret = { pos: Vec2(0, 0), dimension: Vec2(0, 0) };
+
+    ret.pos.set(steppers[0].pos.x - arm1a.length*.75, steppers[0].pos.y + (arm1b.length - arm1a.length*.25));
+
+        //ctx.lineTo(steppers[1].pos.x + arm2a.length*.75, steppers[1].pos.y + arm2a.length*1.5)
+    ret.dimension.set(steppers[1].pos.x + arm2a.length*.75, steppers[1].pos.y + arm2a.length + arm2b.length * .7).subtract(ret.pos);
+        //ctx.lineTo(steppers[0].pos.x - arm1a.length*.75, steppers[1].pos.y + arm2a.length + arm2b.length * .75)
+
+
+    // var stepperDist = steppers[0].pos.distance(steppers[1].pos);
+    // ret.dimension.x = arm1a.length;//add(Vec2(arm1a.length, arm1b.length));
+    // ret.dimension.y = arm1b.length/2
+    // //ret.dimension.add(Vec2(stepperDist, stepperDist));
+    // ret.pos.x = steppers[0].pos.x + stepperDist/2 - ret.dimension.x/2;// - steppers[0].dimension.x/2;
+    // ret.pos.y = (steppers[0].pos.y + arm1a.length/2 + arm1b.length/2);//ret.dimension.x/2;
+    return ret;
+  }
 
   var gui = new dat.GUI();
-  gui.add(config, 'upper', 60, 200).onChange(function(val) {
+  gui.add(config, 'upper length', 60, 200).onChange(function(val) {
     arm1a.length = val;
     arm1a.end.set(Vec2(0, val).rotate(arm1a.rotation).add(steppers[0].pos));
     arm2a.length = val;
     arm2a.end.set(Vec2(0, val).rotate(arm2a.rotation).add(steppers[1].pos));
   });
 
-  gui.add(config, 'lower', 60, 200).onChange(function(val) {
+  gui.add(config, 'lower length', 60, 200).onChange(function(val) {
     arm1b.length = val;
     arm1b.end.set(Vec2(0, val).rotate(arm1b.rotation).add(steppers[0].pos));
     arm2b.length = val;
     arm2b.end.set(Vec2(0, val).rotate(arm2b.rotation).add(steppers[1].pos));
   });
 
+
   var dir = 10;
   var mouse = Vec2();
-  var scale = 2, translate = Vec2(0, 150);
+  var scale = 2, translate = Vec2(0, 200);
   steppers[0].step(600);
   steppers[1].step(-200);
   var ctx = fc(function(delta) {
@@ -245,20 +262,25 @@
     });
 
     ctx.save()
-      var w = 150, h = 150, stride = 10;
+      var buildArea = computeBuildArea();
+      var w = buildArea.dimension.x, h = buildArea.dimension.y, stride = 10;
       ctx.strokeStyle = '#666'
 
       ctx.lineWidth = .3;
-      ctx.strokeRect(0, 0, 150, 150);
+      ctx.strokeRect(buildArea.pos.x , buildArea.pos.y, w, h);
       ctx.fillStyle = "rgba(0,0,0,.3)";
-      ctx.fillRect(0, 0, 150, 150);
+      ctx.fillRect(buildArea.pos.x, buildArea.pos.y, w, h);
 
       ctx.fillStyle = "#334";
-      for (var x = stride; x<w; x+=stride) {
-        for (var y = stride; y < h; y+=stride) {
+      for (var x = buildArea.pos.x + stride; x<buildArea.pos.x + w; x+=stride) {
+        for (var y = buildArea.pos.y + stride; y < buildArea.pos.y + h; y+=stride) {
           ctx.fillRect(x, y, 1, 1);
         }
       }
+
+      ctx.fillStyle = "grey";
+      ctx.fillText(Math.round(buildArea.dimension.y), buildArea.pos.x-20, buildArea.pos.y + buildArea.dimension.y/2);
+      ctx.fillText(Math.round(buildArea.dimension.x), buildArea.pos.x + buildArea.dimension.x/2, buildArea.pos.y + buildArea.dimension.y + 10);
     ctx.restore();
 
 
@@ -375,6 +397,24 @@
     ctx.fillStyle = "white";
     ctx.fillText(arm2a.end.distance(mouse), 200, 10);
 */
+
+
+  
+
+    //   var stepperDist = steppers[0].pos.distance(steppers[1].pos);
+    //   if (stepperDist <= arm1a.length) {
+    //     ctx.moveTo(steppers[0].pos.x - arm1a.length*.75, steppers[0].pos.y + arm1a.length*1.5)
+    //     ctx.lineTo(steppers[1].pos.x + arm2a.length*.75, steppers[1].pos.y + arm2a.length*1.5)
+    //     ctx.lineTo(steppers[1].pos.x + arm2a.length*.75, steppers[1].pos.y + arm2a.length + arm2b.length * .75)
+    //     ctx.lineTo(steppers[0].pos.x - arm1a.length*.75, steppers[1].pos.y + arm2a.length + arm2b.length * .75)
+    //   }
+
+
+
+    // ctx.closePath();
+    //   ctx.strokeStyle = "#f0f";
+    //   ctx.stroke();
+
   });
 
   var computeSteps = function(v) {
@@ -410,8 +450,8 @@
   };
 
   ctx.canvas.addEventListener('mousemove', function(e) {
-    
-    mouse.set(Vec2(e).divide(scale).subtract(translate).clamp(Vec2(0,0), Vec2(150, 150)));
+    var area = computeBuildArea();
+    mouse.set(Vec2(e).divide(scale).subtract(translate).clamp(area.pos, area.pos.add(area.dimension, true)));
     computeSteps(mouse);
   });
 </script>
