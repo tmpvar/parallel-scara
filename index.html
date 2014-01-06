@@ -1,0 +1,419 @@
+<html>
+<head>
+  <title></title>
+  <script type="text/javascript" src="dat.gui.min.js"></script>
+  <script type="text/javascript" src="vec2.min.js"></script>
+</head>
+<body>
+
+<script type="text/javascript">
+
+  function fc(fn) {
+    document.body.style.margin = "0px";
+    document.body.style.padding = "0px";
+
+    var canvas = document.createElement('canvas');
+    document.body.appendChild(canvas);
+    var ctx = canvas.getContext('2d');
+
+    var last = 0;
+    requestAnimationFrame(function tick(time) {
+      var delta = time-last;
+      last = time;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      ctx.fillStyle = "#223";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      fn && fn(delta);
+      ctx.restore();
+      requestAnimationFrame(tick);
+    });
+
+    ctx.canvas = canvas;
+    return ctx;
+  }
+
+  function Stepper(pos, stepsPerRotation, ozin) {
+    this.pos = pos;
+    this.stepsPerRotation = stepsPerRotation;
+    this.radsPerStep = (Math.PI*2)/stepsPerRotation;
+    this.steps = 0;
+    this.ozin = ozin;
+    this.dimensions = Vec2(56, 56);
+    this.observers = [];
+    this.rpm = 0;
+
+    this.timer = 0;
+    this.stepTracker = 0;
+  }
+
+  Stepper.prototype.observe = function(fn) {
+    this.observers.push(fn);
+  }
+
+  Stepper.prototype.ignore = function(fn) {
+    this.observers = this.observers.filter(function(a) {
+      return fn!==a;
+    });
+  }
+
+  Stepper.prototype.step = function(direction) {
+    this.steps += direction;
+    this.currentAngle = this.steps*this.radsPerStep;
+    this.stepTracker += Math.abs(direction);
+    this.notify();
+  }
+
+  Stepper.prototype.notify = function() {
+    var c = this.observers.length;
+    while(c--) {
+      this.observers[c](this, this.currentAngle);
+    }
+  }
+
+  Stepper.prototype.render = function(ctx, delta) {
+
+    this.timer+=delta;
+    if (this.timer > 1000) {
+      this.timer = this.timer%1000;
+      this.rpm = (this.stepTracker/this.stepsPerRotation)*60;
+      this.stepTracker = 0; 
+    }
+
+    ctx.save()
+      var hx = this.dimensions.x/2, hy = this.dimensions.y/2
+      ctx.translate(this.pos.x, this.pos.y);
+      ctx.strokeStyle = "green";
+      ctx.beginPath();
+        ctx.arc(0, 0, 3.65, Math.PI*2, false);
+        ctx.stroke();
+
+      ctx.beginPath();
+        ctx.arc(0, 0, 15, Math.PI*2, false);
+        ctx.stroke();
+  
+      ctx.beginPath();
+        ctx.moveTo(-hx, -hy);
+        ctx.lineTo(-hx, hy);
+        ctx.lineTo(hx, hy);
+        ctx.lineTo(hx, -hy);
+      ctx.closePath();
+      ctx.stroke();
+
+      for (var i = 0; i<4; i++) {
+        ctx.save();
+          ctx.rotate(Math.PI/4 + (Math.PI/2) * i);
+          ctx.translate(0, -hy);
+          ctx.beginPath();
+          ctx.arc(0, 0, 3, Math.PI*2, false);
+          ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+        ctx.rotate(this.steps * this.radsPerStep);
+        ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, 3.65);
+          ctx.stroke();
+      ctx.restore();
+
+    ctx.restore();
+  }
+
+  function Arm(start, end) {
+    this.start = start;
+    this.end = end;
+    this.length = start.distance(end);
+    this.rotation = 0;
+  }
+
+  Arm.prototype.render = function(ctx, delta) {
+    ctx.save();
+      var angle = this.rotation;
+      
+
+
+      ctx.translate(this.start.x, this.start.y);
+      
+      var delta = this.length;
+
+      ctx.strokeStyle = "yellow";
+
+      ctx.save();
+        ctx.rotate(angle);
+        ctx.translate(0, delta);
+
+        ctx.beginPath();
+          ctx.lineTo(-15, -20);
+          ctx.lineTo(-20, -delta);
+          ctx.arc(0, -delta, 20, Math.PI, false);
+          ctx.lineTo(15, -20);
+          ctx.rotate(Math.PI*1.25);
+          ctx.arc(0, 0, 22, Math.PI/2, false);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(0,0,0, 0.6)";
+        ctx.fill();
+
+        ctx.beginPath();
+          ctx.arc(0, 0, 5, Math.PI*2, false);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill()
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, Math.PI*2, false);
+      ctx.closePath();
+      ctx.stroke();
+
+    ctx.restore();
+
+    if (this.end.color) {
+      ctx.fillStyle = this.end.color;
+
+      ctx.beginPath();
+        ctx.arc(this.end.x, this.end.y, 2, Math.PI*2, false);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  Vec2.prototype.render = function(ctx) {
+    ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.strokeStyle = "white";
+      ctx.beginPath();
+        ctx.arc(0, 0, 2, Math.PI/2, false);
+      ctx.closePath();
+      ctx.stroke();
+    ctx.restore();
+  };
+
+  var config = { upper : 60, lower: 100, };
+
+  var steppers = [new Stepper(Vec2(50, -110), 1600), new Stepper(Vec2(110, -110), 1600)];
+
+  var arm1a = new Arm(steppers[0].pos, steppers[0].pos.add(Vec2(0, config.upper), true));
+  var arm2a = new Arm(steppers[1].pos, steppers[1].pos.add(Vec2(0, config.upper), true));
+
+  var arm1b = new Arm(arm1a.end, arm1a.end.add(Vec2(0, config.lower), true));
+  var arm2b = new Arm(arm2a.end, arm2a.end.add(Vec2(0, config.lower), true));
+
+
+  var target = Vec2(0, 50);
+
+  steppers[0].observe(function(stepper, rotation) {
+    arm1a.rotation = rotation;
+    arm1a.end.set(Vec2(0, arm1a.length).rotate(rotation).add(arm1a.start));
+  });
+  steppers[1].observe(function(stepper, rotation) {
+    arm2a.rotation = rotation;
+    arm2a.end.set(Vec2(0, arm2a.length).rotate(rotation).add(arm2a.start));
+  });
+
+  
+
+  var gui = new dat.GUI();
+  gui.add(config, 'upper', 60, 200).onChange(function(val) {
+    arm1a.length = val;
+    arm1a.end.set(Vec2(0, val).rotate(arm1a.rotation).add(steppers[0].pos));
+    arm2a.length = val;
+    arm2a.end.set(Vec2(0, val).rotate(arm2a.rotation).add(steppers[1].pos));
+  });
+
+  gui.add(config, 'lower', 60, 200).onChange(function(val) {
+    arm1b.length = val;
+    arm1b.end.set(Vec2(0, val).rotate(arm1b.rotation).add(steppers[0].pos));
+    arm2b.length = val;
+    arm2b.end.set(Vec2(0, val).rotate(arm2b.rotation).add(steppers[1].pos));
+  });
+
+  var dir = 10;
+  var mouse = Vec2();
+  var scale = 2, translate = Vec2(0, 150);
+  steppers[0].step(600);
+  steppers[1].step(-200);
+  var ctx = fc(function(delta) {
+    ctx.scale(scale, scale);
+    translate.x = (window.innerWidth/2)/2;
+    ctx.translate(translate.x, translate.y);
+    steppers.forEach(function(stepper) {
+      stepper.render(ctx, delta);
+    });
+
+    ctx.save()
+      var w = 150, h = 150, stride = 10;
+      ctx.strokeStyle = '#666'
+
+      ctx.lineWidth = .3;
+      ctx.strokeRect(0, 0, 150, 150);
+      ctx.fillStyle = "rgba(0,0,0,.3)";
+      ctx.fillRect(0, 0, 150, 150);
+
+      ctx.fillStyle = "#334";
+      for (var x = stride; x<w; x+=stride) {
+        for (var y = stride; y < h; y+=stride) {
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    ctx.restore();
+
+
+    if (steppers[0].steps >= 400) {
+      dir = -10;
+    } else if (steppers[0].steps <= 0) {
+      dir = 10;
+    }
+
+
+    var diff = arm1b.end.subtract(arm2b.end, true).divide(2);
+    
+    var triA = arm1b.length;
+    var triB = arm2b.length;
+    var triC = arm1a.end.distance(arm2a.end);
+    var theta = Vec2(1, 0).angleTo(arm2a.end.subtract(arm1a.end, true));
+
+    var b = Math.acos((triC*triC + triA*triA - triB*triB) / (2 * triC * triA));
+    var a = -Math.acos((triC*triC + triB*triB - triA*triA) / (2 * triC * triB));
+    var rot1 = b - Math.PI/2 + theta;
+    var rot2 = a + Math.PI/2 + theta;
+
+    if (!isNaN(rot1)) {
+      arm1b.rotation = rot1;
+      arm1b.end.set(Vec2(0, arm1b.length).rotate(arm1b.rotation).add(arm1b.start));
+    }
+
+    if (!isNaN(rot2)) {
+      arm2b.rotation = rot2;
+      arm2b.end.set(Vec2(0, arm2b.length).rotate(arm2b.rotation).add(arm2b.start));
+    }
+
+    arm1a.render(ctx);
+    arm2a.render(ctx);
+    arm1b.render(ctx);
+    arm2b.render(ctx);
+
+    if (arm2b.end.distance(arm1b.end) > .1) {
+      arm2b.end.color = 'red';
+    } else {
+      arm2b.end.color = 'white';
+    }
+
+    /*
+
+    ctx.save();
+
+      ctx.strokeStyle = "white";
+      ctx.fillStyle = "white";
+
+      ctx.beginPath();
+      //var distance = Math.sqrt(arm1a.end.x*arm1a.end.x + arm2a.end.x*arm2a.end.x)/2;
+      var distance = arm1a.end.distance(arm2a.end)/2;
+      ctx.moveTo(arm1a.end.x, arm1a.end.y);
+      
+      var diff = arm2a.end.subtract(arm1a.end, true).divide(2).add(arm1a.end);
+      ctx.lineTo(diff.x, diff.y);
+      ctx.lineTo(diff.x, diff.y + 180);
+      ctx.stroke();
+
+      ctx.beginPath()
+      ctx.save()
+        ctx.translate(arm1a.end.x, arm1a.end.y);
+        ctx.moveTo(0, 0);
+        var angle = -Math.asin((distance)/(185));
+        ctx.rotate(angle);
+        ctx.lineTo(0, arm1b.length);
+        ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = "white";
+      ctx.font = "10px sans-serif"
+      ctx.fillText("x: "+Number(distance).toFixed(2), diff.x - 10, arm1a.end.y-2)
+      //ctx.fillText("y: "+Number(Math.atan(distance/185)).toFixed(2), diff.x, arm1a.end.y + diff.x*Math.acos(distance/185))
+      */
+      
+    /*ctx.beginPath();
+      ctx.moveTo(arm1b.start.x, arm1b.start.y);
+      ctx.lineTo(arm2b.start.x, arm2b.start.y);
+    ctx.closePath();
+    ctx.strokeStyle = "red"
+    
+    ctx.stroke();
+    ctx.beginPath();
+      ctx.moveTo(arm1a.end.subtract(arm2a.end, true).length(), arm1a.end.y);
+      ctx.lineTo(arm1b.end.x, arm1b.end.y);
+    ctx.closePath();
+    ctx.strokeStyle = "red"
+      ctx.stroke();
+*/
+    ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, 10, Math.PI*2, false);
+      ctx.strokeStyle = "red";
+      ctx.stroke();
+
+/*    ctx.beginPath();
+      ctx.moveTo(mouse.x, mouse.y);
+      ctx.lineTo(steppers[0].pos.x, steppers[0].pos.y);
+      ctx.lineTo(arm1a.end.x, arm1a.end.y);
+    ctx.closePath();
+    ctx.strokeStyle = "white";
+    ctx.stroke();
+    ctx.fillStyle = "white";
+    ctx.fillText(arm1a.end.distance(mouse), 10, 10);
+
+
+    ctx.beginPath();
+      ctx.moveTo(mouse.x, mouse.y);
+      ctx.lineTo(steppers[1].pos.x, steppers[1].pos.y);
+      ctx.lineTo(arm2a.end.x, arm1a.end.y);
+    ctx.closePath();
+    ctx.strokeStyle = "white";
+    ctx.stroke();
+    ctx.fillStyle = "white";
+    ctx.fillText(arm2a.end.distance(mouse), 200, 10);
+*/
+  });
+
+  var computeSteps = function(v) {
+
+    // compute arm 1
+    var theta = Vec2(0, 1).angleTo(v.subtract(steppers[0].pos, true));
+    var theta2 = Vec2(0, 1).angleTo(v.subtract(steppers[1].pos, true));
+
+    var tri1A = arm1a.length;
+    var tri1B = v.distance(steppers[0].pos);
+    var tri1C = arm1b.length;
+
+    var tri2A = arm2a.length;
+    var tri2B = v.distance(steppers[1].pos);
+    var tri2C = arm2b.length;
+
+    // uint32_t's
+    var b = Math.acos((tri1B*tri1B + tri1A*tri1A - tri1C*tri1C) / (2 * tri1A * tri1B)) + theta;
+    
+    if (!isNaN(b)) {
+      //steppers[0].steps = steppers[0].stepsPerRotation*(b/Math.PI);
+      steppers[0].currentAngle = b;
+      steppers[0].notify();
+    }
+
+    var c = -Math.acos((tri2B*tri2B + tri2A*tri2A - tri2C*tri2C) / (2 * tri2A * tri2B)) + theta2;
+
+    if (!isNaN(c)) {
+      //steppers[1].steps = steppers[1].stepsPerRotation*(c/Math.PI);
+      steppers[1].currentAngle = c;
+      steppers[1].notify();
+    }
+  };
+
+  ctx.canvas.addEventListener('mousemove', function(e) {
+    
+    mouse.set(Vec2(e).divide(scale).subtract(translate).clamp(Vec2(0,0), Vec2(150, 150)));
+    computeSteps(mouse);
+  });
+</script>
+</body>
+</html>
