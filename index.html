@@ -212,7 +212,6 @@
     arm2a.end.set(Vec2(0, arm2a.length).rotate(rotation).add(arm2a.start));
   });
 
-
   var computeBuildArea = function() {
     var ret = { pos: Vec2(0, 0), dimension: Vec2(0, 0) };
 
@@ -251,7 +250,7 @@
   var dir = 10;
   var mouse = Vec2();
   var scale = 2, translate = Vec2(0, 200);
-  steppers[0].step(600);
+  steppers[0].step(200);
   steppers[1].step(-200);
   var ctx = fc(function(delta) {
     ctx.scale(scale, scale);
@@ -324,97 +323,10 @@
       arm2b.end.color = 'white';
     }
 
-    /*
-
-    ctx.save();
-
-      ctx.strokeStyle = "white";
-      ctx.fillStyle = "white";
-
-      ctx.beginPath();
-      //var distance = Math.sqrt(arm1a.end.x*arm1a.end.x + arm2a.end.x*arm2a.end.x)/2;
-      var distance = arm1a.end.distance(arm2a.end)/2;
-      ctx.moveTo(arm1a.end.x, arm1a.end.y);
-      
-      var diff = arm2a.end.subtract(arm1a.end, true).divide(2).add(arm1a.end);
-      ctx.lineTo(diff.x, diff.y);
-      ctx.lineTo(diff.x, diff.y + 180);
-      ctx.stroke();
-
-      ctx.beginPath()
-      ctx.save()
-        ctx.translate(arm1a.end.x, arm1a.end.y);
-        ctx.moveTo(0, 0);
-        var angle = -Math.asin((distance)/(185));
-        ctx.rotate(angle);
-        ctx.lineTo(0, arm1b.length);
-        ctx.stroke();
-      ctx.restore();
-
-      ctx.fillStyle = "white";
-      ctx.font = "10px sans-serif"
-      ctx.fillText("x: "+Number(distance).toFixed(2), diff.x - 10, arm1a.end.y-2)
-      //ctx.fillText("y: "+Number(Math.atan(distance/185)).toFixed(2), diff.x, arm1a.end.y + diff.x*Math.acos(distance/185))
-      */
-      
-    /*ctx.beginPath();
-      ctx.moveTo(arm1b.start.x, arm1b.start.y);
-      ctx.lineTo(arm2b.start.x, arm2b.start.y);
-    ctx.closePath();
-    ctx.strokeStyle = "red"
-    
-    ctx.stroke();
-    ctx.beginPath();
-      ctx.moveTo(arm1a.end.subtract(arm2a.end, true).length(), arm1a.end.y);
-      ctx.lineTo(arm1b.end.x, arm1b.end.y);
-    ctx.closePath();
-    ctx.strokeStyle = "red"
-      ctx.stroke();
-*/
     ctx.beginPath();
       ctx.arc(mouse.x, mouse.y, 10, Math.PI*2, false);
       ctx.strokeStyle = "red";
       ctx.stroke();
-
-/*    ctx.beginPath();
-      ctx.moveTo(mouse.x, mouse.y);
-      ctx.lineTo(steppers[0].pos.x, steppers[0].pos.y);
-      ctx.lineTo(arm1a.end.x, arm1a.end.y);
-    ctx.closePath();
-    ctx.strokeStyle = "white";
-    ctx.stroke();
-    ctx.fillStyle = "white";
-    ctx.fillText(arm1a.end.distance(mouse), 10, 10);
-
-
-    ctx.beginPath();
-      ctx.moveTo(mouse.x, mouse.y);
-      ctx.lineTo(steppers[1].pos.x, steppers[1].pos.y);
-      ctx.lineTo(arm2a.end.x, arm1a.end.y);
-    ctx.closePath();
-    ctx.strokeStyle = "white";
-    ctx.stroke();
-    ctx.fillStyle = "white";
-    ctx.fillText(arm2a.end.distance(mouse), 200, 10);
-*/
-
-
-  
-
-    //   var stepperDist = steppers[0].pos.distance(steppers[1].pos);
-    //   if (stepperDist <= arm1a.length) {
-    //     ctx.moveTo(steppers[0].pos.x - arm1a.length*.75, steppers[0].pos.y + arm1a.length*1.5)
-    //     ctx.lineTo(steppers[1].pos.x + arm2a.length*.75, steppers[1].pos.y + arm2a.length*1.5)
-    //     ctx.lineTo(steppers[1].pos.x + arm2a.length*.75, steppers[1].pos.y + arm2a.length + arm2b.length * .75)
-    //     ctx.lineTo(steppers[0].pos.x - arm1a.length*.75, steppers[1].pos.y + arm2a.length + arm2b.length * .75)
-    //   }
-
-
-
-    // ctx.closePath();
-    //   ctx.strokeStyle = "#f0f";
-    //   ctx.stroke();
-
   });
 
   var computeSteps = function(v) {
@@ -435,17 +347,13 @@
     var b = Math.acos((tri1B*tri1B + tri1A*tri1A - tri1C*tri1C) / (2 * tri1A * tri1B)) + theta;
     
     if (!isNaN(b)) {
-      //steppers[0].steps = steppers[0].stepsPerRotation*(b/Math.PI);
-      steppers[0].currentAngle = b;
-      steppers[0].notify();
+      steppers[0].step(steppers[0].stepsPerRotation*(b/(Math.PI*2)) - steppers[0].steps)
     }
 
     var c = -Math.acos((tri2B*tri2B + tri2A*tri2A - tri2C*tri2C) / (2 * tri2A * tri2B)) + theta2;
 
     if (!isNaN(c)) {
-      //steppers[1].steps = steppers[1].stepsPerRotation*(c/Math.PI);
-      steppers[1].currentAngle = c;
-      steppers[1].notify();
+      steppers[1].step(steppers[1].stepsPerRotation*(c/(Math.PI*2)) - steppers[1].steps)
     }
   };
 
